@@ -1,0 +1,90 @@
+services:
+  # --- Load Balancer (Rust Version) ---
+  load-balancer:
+    build:
+      context: ${LB_BUILD_CONTEXT:-./Rust_lb}
+      dockerfile: ${LB_DOCKERFILE:-Dockerfile}
+    container_name: ${OLLAMA_LB_CONTAINER_NAME:-load-balancer}
+    ports:
+      - "${PORT:-11434}:11434"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      # Map generic LOG_LEVEL to Rust's specific env var
+      - RUST_LOG=${LOG_LEVEL:-info}
+      # Also pass LOG_LEVEL for Python fallback
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    env_file: .env
+
+    deploy:
+      resources:
+        limits:
+          memory: 128M # Rust is tiny
+    restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/version" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # --- NVIDIA Backend ---
+  ollama-nvidia:
+    image: ${OLLAMA_NVIDIA_IMAGE:-ollama/ollama:latest}
+    # container_name: Removed for scaling
+    runtime: nvidia
+    deploy:
+      replicas: ${OLLAMA_NVIDIA_REPLICAS:-1}
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    labels:
+      - "ollama.backend=true"
+      - "ollama.type=nvidia"
+    ports:
+      # Use range or let Docker assign random ports
+      # Note: For internal LB routing, we don't strictly need exposed ports on host, 
+      # but if you want to access directly, let Docker assign random high ports
+      - "11434"
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0:11434}
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-*}
+      - OLLAMA_MODELS=/root/.ollama/models
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-1}
+      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}
+    volumes:
+      - ollama_storage:/root/.ollama
+    restart: always
+
+  # --- AMD Backend ---
+  ollama-amd:
+    image: ${OLLAMA_AMD_IMAGE:-ollama/ollama:rocm}
+    # container_name: Removed for scaling
+    deploy:
+      replicas: ${OLLAMA_AMD_REPLICAS:-1}
+    labels:
+      - "ollama.backend=true"
+      - "ollama.type=amd"
+    ports:
+      - "11434"
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    environment:
+      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0:11434}
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-*}
+      - OLLAMA_MODELS=/root/.ollama/models
+      # AMD specific envs
+      - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-10.3.0}
+      - HCC_AMDGPU_TARGET=${HCC_AMDGPU_TARGET:-gfx1030}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
+    volumes:
+      - ollama_storage:/root/.ollama
+    restart: always
+
+volumes:
+  ollama_storage:
+    name: ${OLLAMA_DATA_VOLUME:-ollama}

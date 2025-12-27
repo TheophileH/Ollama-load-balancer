@@ -1,0 +1,48 @@
+services:
+  ollama-amd:
+    image: ${OLLAMA_AMD_IMAGE}
+    container_name: ${OLLAMA_AMD_CONTAINER_NAME}
+    restart: always
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    env_file: .env
+    # environment: All config now managed via .env
+    volumes:
+      - ollama_storage:/root/.ollama
+    ports:
+      - "${OLLAMA_AMD_PORT}:11434"
+
+  ollama-nvidia:
+    image: ${OLLAMA_NVIDIA_IMAGE}
+    container_name: ${OLLAMA_NVIDIA_CONTAINER_NAME}
+    restart: always
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    env_file: .env
+    # environment: All config now managed via .env
+    volumes:
+      - ollama_storage:/root/.ollama
+    ports:
+      - "${OLLAMA_NVIDIA_PORT}:11434"
+
+  ollama-load-balancer:
+    build: .
+    container_name: ${OLLAMA_LB_CONTAINER_NAME}
+    restart: always
+    ports:
+      - "${PORT:-11434}:11434"
+    env_file: .env
+    depends_on:
+      - ollama-amd
+      - ollama-nvidia
+
+volumes:
+  ollama_storage:
+    name: ${OLLAMA_DATA_VOLUME}
+    external: true

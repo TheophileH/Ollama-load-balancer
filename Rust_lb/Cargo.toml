@@ -1,0 +1,28 @@
+[package]
+name = "ollama-load-balancer-rust"
+version = "0.1.0"
+edition = "2021"
+
+authors = ["TheophileH <https://github.com/TheophileH>"]
+
+[dependencies]
+axum = { version = "0.7", features = ["macros", "http2"] }
+tokio = { version = "1.0", features = ["full"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+dotenv = "0.15"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2.5"
+bytes = "1.5"
+futures-util = "0.3"
+bollard = "0.15"
+rand = "0.8"
+clap = { version = "4.5", features = ["derive"] }
+dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+inquire = "0.6.2"
+fuzzy-matcher = "0.3.7"
+scraper = "0.19"
+regex = "1.10"
