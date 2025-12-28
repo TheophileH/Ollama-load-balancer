@@ -185,8 +185,12 @@ source ~/.bashrc
 
 **Verify the setup**:
 ```bash
-ollama discover llama3
+ollama discover llama
 ```
+<img width="1120" height="616" alt="image" src="https://github.com/user-attachments/assets/79585a46-6111-46e1-ae50-9a3a885fd66e" />
+
+<img width="1718" height="616" alt="image" src="https://github.com/user-attachments/assets/e53bb227-8838-409f-9546-8adff7a34950" />
+
 
 ### Manual Instance Selection
 Force execution on a specific GPU vendor:
