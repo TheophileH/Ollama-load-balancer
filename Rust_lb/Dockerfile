@@ -25,8 +25,14 @@ RUN cargo build --release
 FROM debian:bullseye-slim
 
 WORKDIR /app
-# Install runtime dependencies (OpenSSL)
-RUN apt-get update && apt-get install -y libssl1.1 ca-certificates curl && rm -rf /var/lib/apt/lists/*
+# Install runtime dependencies
+# Note: nvidia-smi/rocm-smi are accessed on host via Command::new, not in container
+RUN apt-get update && apt-get install -y \
+    libssl1.1 \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
 
 COPY --from=builder /app/rust_lb/target/release/ollama-load-balancer-rust ./server
 

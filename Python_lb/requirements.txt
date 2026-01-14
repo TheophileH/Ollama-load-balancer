@@ -1,7 +1,0 @@
-python-dotenv
-httpx
-fastapi
-uvicorn
-docker
-httpx
-python-dotenv

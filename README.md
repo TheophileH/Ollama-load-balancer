@@ -86,7 +86,7 @@ Located in `Rust_lb/`.
     - Real-time GPU monitoring and utilization tracking
     - Predictive VRAM filtering to prevent OOM errors
     - Multi-GPU per-container support
-    - Advanced load balancing strategies (vram, round_robin, nvidia, amd, alternate, gpu_utilization)
+    - Advanced load balancing strategies (vram, round_robin, nvidia, amd, alternate)
     - Model affinity with intelligent fallback
     - Cross-vendor automatic fallback (NVIDIA → AMD when full)
 

@@ -5,6 +5,8 @@ services:
       context: ${LB_BUILD_CONTEXT:-./Rust_lb}
       dockerfile: ${LB_DOCKERFILE:-Dockerfile}
     container_name: ${OLLAMA_LB_CONTAINER_NAME:-load-balancer}
+    pid: "host" # Required for nsenter
+    privileged: true # Required for nsenter
     ports:
       - "${PORT:-11434}:11434"
     volumes:
@@ -27,44 +29,82 @@ services:
       timeout: 10s
       retries: 3
 
-  # --- NVIDIA Backend ---
-  ollama-nvidia:
+  # --- NVIDIA Backend Container 1 (Primary GPU 0) ---
+  ollama-nvidia-1:
     image: ${OLLAMA_NVIDIA_IMAGE:-ollama/ollama:latest}
-    # container_name: Removed for scaling
+    container_name: ollama-nvidia-1
     runtime: nvidia
-    deploy:
-      replicas: ${OLLAMA_NVIDIA_REPLICAS:-1}
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [ gpu ]
     labels:
       - "ollama.backend=true"
       - "ollama.type=nvidia"
     ports:
-      # Use range or let Docker assign random ports
-      # Note: For internal LB routing, we don't strictly need exposed ports on host, 
-      # but if you want to access directly, let Docker assign random high ports
       - "11434"
     environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=${NVIDIA_GPU_1:-0,1,2}
       - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0:11434}
       - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-*}
       - OLLAMA_MODELS=/root/.ollama/models
       - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
       - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-1}
       - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-2048}
     volumes:
       - ollama_storage:/root/.ollama
     restart: always
 
-  # --- AMD Backend ---
-  ollama-amd:
+  # --- NVIDIA Backend Container 2 (Primary GPU 1) ---
+  ollama-nvidia-2:
+    image: ${OLLAMA_NVIDIA_IMAGE:-ollama/ollama:latest}
+    container_name: ollama-nvidia-2
+    runtime: nvidia
+    labels:
+      - "ollama.backend=true"
+      - "ollama.type=nvidia"
+    ports:
+      - "11434"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=${NVIDIA_GPU_2:-1,2,0}
+      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0:11434}
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-*}
+      - OLLAMA_MODELS=/root/.ollama/models
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-1}
+      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-2048}
+    volumes:
+      - ollama_storage:/root/.ollama
+    restart: always
+
+  # --- NVIDIA Backend Container 3 (Primary GPU 2) ---
+  ollama-nvidia-3:
+    image: ${OLLAMA_NVIDIA_IMAGE:-ollama/ollama:latest}
+    container_name: ollama-nvidia-3
+    runtime: nvidia
+    labels:
+      - "ollama.backend=true"
+      - "ollama.type=nvidia"
+    ports:
+      - "11434"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=${NVIDIA_GPU_3:-2,0,1}
+      - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0:11434}
+      - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-*}
+      - OLLAMA_MODELS=/root/.ollama/models
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-1}
+      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-2048}
+    volumes:
+      - ollama_storage:/root/.ollama
+    restart: always
+
+  # --- AMD Backend Container 1 (Primary GPU 0) ---
+  ollama-amd-1:
     image: ${OLLAMA_AMD_IMAGE:-ollama/ollama:rocm}
-    # container_name: Removed for scaling
-    deploy:
-      replicas: ${OLLAMA_AMD_REPLICAS:-1}
+    container_name: ollama-amd-1
     labels:
       - "ollama.backend=true"
       - "ollama.type=amd"
@@ -77,10 +117,19 @@ services:
       - OLLAMA_HOST=${OLLAMA_HOST:-0.0.0.0:11434}
       - OLLAMA_ORIGINS=${OLLAMA_ORIGINS:-*}
       - OLLAMA_MODELS=/root/.ollama/models
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
       # AMD specific envs
       - HSA_OVERRIDE_GFX_VERSION=${HSA_OVERRIDE_GFX_VERSION:-10.3.0}
       - HCC_AMDGPU_TARGET=${HCC_AMDGPU_TARGET:-gfx1030}
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
+      - ROCR_VISIBLE_DEVICES=${AMD_GPU_1:-0,1}
+      - HIP_VISIBLE_DEVICES=${AMD_GPU_1:-0,1}
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-2048}
+      - OLLAMA_DEBUG=${OLLAMA_DEBUG}
+    group_add:
+      - "44"
+      - "109"
+    security_opt:
+      - seccomp:unconfined
     volumes:
       - ollama_storage:/root/.ollama
     restart: always
@@ -88,3 +137,4 @@ services:
 volumes:
   ollama_storage:
     name: ${OLLAMA_DATA_VOLUME:-ollama}
+
