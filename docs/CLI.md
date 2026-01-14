@@ -76,7 +76,7 @@ ollama() {
 
 **Apply changes**:
 ```bash
-source ~/.bashrc  # or ~/.zshrc
+source ~/.bashrc  # or source ~/.zshrc
 ```
 
 ### 🐟 Linux / 🍎 macOS (Fish Shell)
